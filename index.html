@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QI vs. Research Regulatory Clarifier Tool</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+/* Theme: Compliance Tool - High Contrast, Professional */
+:root {
+  --bg-color: #f8fafc; /* Light background for standalone tool */
+  --text-primary: #0f172a; /* Deep Navy text */
+  --text-secondary: #475569; /* Muted grey for body */
+  --accent-color: #dc2626; /* Red for Research/Risk */
+  --accent-secondary: #3b82f6; /* Blue for Governance/Action */
+  --tile-bg: #e2e8f0; /* Light grey for input/output areas */
+  --input-bg: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-color);
+  font-family: 'Inter', sans-serif;
+  color: var(--text-primary);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 40px 20px;
+}
+
+.tool-container {
+    background-color: var(--input-bg);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+}
+
+h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px;
+    color: var(--text-primary);
+    border-bottom: 3px solid var(--accent-secondary);
+    padding-bottom: 10px;
+    margin-bottom: 25px;
+}
+
+.tool-input { 
+    width: 100%; 
+    display: flex; 
+    gap: 15px; 
+    margin-bottom: 30px; 
+}
+.tool-input textarea {
+    flex-grow: 1;
+    padding: 15px;
+    border-radius: 8px;
+    background-color: #f1f5f9;
+    color: var(--text-primary);
+    border: 1px solid #cbd5e1;
+    resize: none;
+    height: 120px;
+    font-size: 16px;
+    font-family: 'Inter', sans-serif;
+}
+.tool-input button {
+    background-color: var(--accent-secondary);
+    color: var(--input-bg);
+    border: none;
+    padding: 15px 30px;
+    border-radius: 8px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-weight: 600;
+    white-space: nowrap;
+    height: 120px;
+}
+.tool-input button:hover { background-color: #1e40af; }
+
+.tool-output {
+    width: 100%;
+    min-height: 250px;
+    background-color: var(--tile-bg);
+    border-radius: 8px;
+    padding: 25px;
+    border-left: 5px solid var(--accent-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+}
+.output-title { 
+    font-size: 20px; 
+    color: var(--text-primary); 
+    font-weight: 700; 
+    margin-bottom: 5px; 
+}
+.output-classification { 
+    font-size: 30px; 
+    font-family: 'Playfair Display', serif; 
+    font-weight: 700; 
+    color: var(--accent-color); 
+    padding: 5px 0; 
+    border-bottom: 1px solid #94a3b8; 
+    margin-bottom: 15px; 
+}
+.output-classification.qi { color: #10b981; } /* Green for QI */
+
+.spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-top: 4px solid var(--accent-secondary);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 40px auto;
+    display: none;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+p { color: var(--text-secondary); }
+strong { color: var(--text-primary); }
+    </style>
+</head>
+<body>
+
+<div class="tool-container">
+    <h2><i class="fa-solid fa-gavel"></i> QI vs. Research Regulatory Clarifier</h2>
+    <p style="margin-bottom: 20px;">Use this tool to get a preliminary, compliance-focused assessment of a project's classification. The biggest risk is misclassification based on intent (e.g., generalizability or publication).</p>
+    
+    <div class="tool-input">
+        <textarea id="project-query" placeholder="Describe the project's goal, methodology, and ultimate intent (e.g., publishing, internal change, etc.). Example: 'A multi-site study to compare three new protocols for sepsis care and submit the findings for a national conference poster.'"></textarea>
+        <button onclick="clarifyProjectClassification()">
+            <i class="fa-solid fa-magnifying-glass"></i> Assess Classification
+        </button>
+    </div>
+    
+    <div class="spinner" id="spinner"></div>
+    <div class="tool-output" id="output-area" style="display: none;">
+        <div class="output-title"><i class="fa-solid fa-clipboard-list"></i> Preliminary Assessment:</div>
+        <div id="output-classification" class="output-classification"></div>
+        <div style="font-size: 16px; color: var(--text-secondary);">
+            <p><strong style="color: var(--accent-secondary);">Justification:</strong> <span id="output-justification"></span></p>
+            <p><strong style="color: var(--accent-color);">Immediate Risk if Misclassified:</strong> <span id="output-risk"></span></p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- GEMINI API INTEGRATION ---
+    const API_MODEL = 'gemini-2.5-flash-preview-09-2025';
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${API_MODEL}:generateContent?key=`; // Key will be provided by environment
+
+    const spinner = document.getElementById('spinner');
+    const outputArea = document.getElementById('output-area');
+
+    function showLoading(show) {
+        spinner.style.display = show ? 'block' : 'none';
+        outputArea.style.display = show ? 'none' : 'flex';
+        if (!show) {
+             outputArea.style.display = 'flex'; // Ensure it becomes visible when done
+        }
+    }
+
+    // Exponential Backoff Retry mechanism
+    async function fetchWithRetry(url, options, retries = 3) {
+        for (let i = 0; i < retries; i++) {
+            try {
+                const response = await fetch(url, options);
+                if (response.status === 429 && i < retries - 1) {
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
+                }
+                return response;
+            } catch (error) {
+                if (i < retries - 1) {
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
+                }
+                throw error;
+            }
+        }
+    }
+
+    // Function name updated here
+    async function clarifyProjectClassification() {
+        const query = document.getElementById('project-query').value.trim();
+        if (!query) {
+            alert("Please enter a project description to assess the risk.");
+            return;
+        }
+
+        showLoading(true);
+        outputArea.style.display = 'none'; // Hide output while loading
+
+        const systemInstruction = "You are a highly experienced Institutional Review Board (IRB) compliance officer. Your task is to provide a preliminary, non-binding assessment of whether a project concept should be classified as RESEARCH (requiring IRB review) or QUALITY IMPROVEMENT (QI) based on the criteria of 'intent to contribute to generalizable knowledge.' Be concise and formal. The response MUST be a single JSON object conforming to the schema.";
+
+        const payload = {
+            contents: [{ parts: [{ text: query }] }],
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "OBJECT",
+                    properties: {
+                        "classification": { "type": "STRING", "description": "The primary classification: RESEARCH or QUALITY IMPROVEMENT (QI)." },
+                        "justification": { "type": "STRING", "description": "A concise reason for the classification based on regulatory intent (generalizability/publication)." },
+                        "immediateRisk": { "type": "STRING", "description": "The most significant immediate risk if misclassified (e.g., PHI breach, federal non-compliance, legal exposure)." }
+                    },
+                    required: ["classification", "justification", "immediateRisk"]
+                }
+            }
+        };
+
+        try {
+            const response = await fetchWithRetry(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            
+            let assessment;
+            try {
+                const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!jsonText) throw new Error("No structured JSON response received.");
+                assessment = JSON.parse(jsonText);
+            } catch (e) {
+                console.error("Failed to parse JSON:", e, result);
+                document.getElementById('output-classification').textContent = 'ERROR';
+                document.getElementById('output-justification').textContent = 'Could not process structured response. Ensure the query is clear.';
+                document.getElementById('output-risk').textContent = 'Failure to obtain clear regulatory guidance.';
+                return;
+            }
+
+            const isResearch = assessment.classification.toUpperCase().includes('RESEARCH');
+            const classificationElement = document.getElementById('output-classification');
+
+            classificationElement.textContent = assessment.classification.toUpperCase();
+            classificationElement.className = 'output-classification ' + (isResearch ? '' : 'qi');
+            
+            document.getElementById('output-justification').textContent = assessment.justification;
+            document.getElementById('output-risk').textContent = assessment.immediateRisk;
+
+        } catch (error) {
+            console.error('API Call Failed:', error);
+            document.getElementById('output-classification').textContent = 'SYSTEM ERROR';
+            document.getElementById('output-justification').textContent = 'Could not connect to the Regulatory Clarifier Service.';
+            document.getElementById('output-risk').textContent = 'Failure to obtain clear regulatory guidance.';
+        } finally {
+            showLoading(false);
+        }
+    }
+</script>
+
+</body>
+</html>
