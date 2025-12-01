@@ -185,6 +185,12 @@ strong { color: var(--text-primary); }
                     await new Promise(resolve => setTimeout(resolve, delay));
                     continue;
                 }
+                // Check for non-200 response to log specific API errors
+                if (!response.ok) {
+                    const errorJson = await response.json();
+                    const errorMessage = errorJson.error?.message || `HTTP Error ${response.status}: Failed to reach API.`;
+                    throw new Error(errorMessage);
+                }
                 return response;
             } catch (error) {
                 if (i < retries - 1) {
@@ -239,12 +245,20 @@ strong { color: var(--text-primary); }
             let assessment;
             try {
                 const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!jsonText) throw new Error("No structured JSON response received.");
+                
+                // Check if the model returned an error (e.g., safety block) instead of candidates/JSON
+                if (!jsonText) {
+                    if (result.error && result.error.message) {
+                        throw new Error(result.error.message); // Throw the API's error message
+                    }
+                    throw new Error("No structured content received from model.");
+                }
+                
                 assessment = JSON.parse(jsonText);
             } catch (e) {
-                console.error("Failed to parse JSON:", e, result);
-                document.getElementById('output-classification').textContent = 'ERROR';
-                document.getElementById('output-justification').textContent = 'Could not process structured response. Ensure the query is clear.';
+                console.error("API BLOCKED or JSON Parse Failed:", e, result);
+                document.getElementById('output-classification').textContent = 'API BLOCKED';
+                document.getElementById('output-justification').textContent = `Authentication or Safety Filter likely blocking request. Check console for full API error details.`;
                 document.getElementById('output-risk').textContent = 'Failure to obtain clear regulatory guidance.';
                 return;
             }
@@ -260,8 +274,8 @@ strong { color: var(--text-primary); }
 
         } catch (error) {
             console.error('API Call Failed:', error);
-            document.getElementById('output-classification').textContent = 'SYSTEM ERROR';
-            document.getElementById('output-justification').textContent = 'Could not connect to the Regulatory Clarifier Service.';
+            document.getElementById('output-classification').textContent = 'API BLOCKED';
+            document.getElementById('output-justification').textContent = `Authentication or network failure: ${error.message}`;
             document.getElementById('output-risk').textContent = 'Failure to obtain clear regulatory guidance.';
         } finally {
             showLoading(false);
