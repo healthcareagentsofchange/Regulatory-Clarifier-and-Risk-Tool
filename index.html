@@ -182,11 +182,18 @@ strong { color: var(--text-primary); }
         return new Promise(resolve => {
             setTimeout(() => {
                 const q = query.toLowerCase();
-                const isResearch = q.includes('publish') || q.includes('conference') || q.includes('generaliz') || q.includes('compare protocols');
+                
+                // *** UPDATED LOGIC TO DETECT RESEARCH METHODOLOGY ***
+                const isResearch = q.includes('publish') || q.includes('conference') || q.includes('generaliz') || 
+                                   q.includes('cohort study') || q.includes('retrospective study') || 
+                                   q.includes('compare outcomes') || q.includes('randomized') || 
+                                   q.includes('validation') || q.includes('assessment');
+                // ***************************************************
+
                 resolve({
                     classification: isResearch ? "RESEARCH" : "QUALITY IMPROVEMENT (QI)",
                     justification: isResearch ? 
-                        "The intent to publish or seek generalizable knowledge (as evidenced by conference presentation or comparative protocol testing) satisfies the federal definition of research." : 
+                        "The presence of formal research design elements (e.g., retrospective cohort study, comparison of outcomes, intent to generalize) satisfies the federal definition of research." : 
                         "The intent appears limited solely to internal process improvement and monitoring local performance metrics.",
                     immediateRisk: isResearch ? 
                         "Proceeding without IRB review violates Federal Human Subjects protections. Potential for non-compliance fines and data unauthorized disclosure." : 
